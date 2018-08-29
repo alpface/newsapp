@@ -24,6 +24,11 @@ if not os.path.exists(logfile):
     # 调用系统命令行来创建文件
     os.system(r"touch {}".format(logfile))
 f = open(logfile,'a+')
+pricklefileName = pickle_dir + '监控数据_热启动文件.pickle'
+if not os.path.exists(pricklefileName):
+    # 调用系统命令行来创建文件
+    os.system(r"touch {}".format(pricklefileName))
+
 Master = {'Master':{'UserName':'', 'NickName':'xiaoyuan'}}
 Debug = False
 

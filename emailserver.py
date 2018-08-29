@@ -7,8 +7,10 @@ from email.mime.text import MIMEText
 EMAIL_HOST = 'smtp.exmail.qq.com'
 EMAIL_PORT = 465
 EMAIL_HOST_USER = 'xy@swift.top' #os.environ.get('DJANGO_EMAIL_USER')
-EMAIL_HOST_PASSWORD = ''#os.environ.get('DJANGO_EMAIL_PASSWORD')
-EMAIL_TO = ["392237716@qq.com", "wangshuai@swift.top", "coderhong@126.com"]
+with open('emailpassword.txt', 'r+') as pf:
+    EMAIL_HOST_PASSWORD = pf.readline()
+
+EMAIL_TO = ["wangshuai@swift.top", "coderhong@126.com"]
 EMAIL_CC = ["sey@live.cn"]
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 SERVER_EMAIL = EMAIL_HOST_USER

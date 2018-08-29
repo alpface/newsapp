@@ -68,7 +68,7 @@ class TBaiDuNewsScapper:
             else:
                 self.serachRangeOpts = {}
                 for key in self.keywordList:
-                    self.serachRangeOpts[key] = {'百度新闻':True, '百度网页':True,'搜狗新闻':True,'搜狗微信':True,'今日头条':True }
+                    self.serachRangeOpts[key] = {'百度新闻':True, '百度网页':False,'搜狗新闻':False,'搜狗微信':False,'今日头条':False }
             print(self.serachRangeOpts)
             self.companyInFiled = data['companyInFiled']
             self.numOfNewsInEachScan = data['numOfNewsInEachScan']
@@ -102,10 +102,10 @@ class TBaiDuNewsScapper:
             #     raise Exception(errmsg)
         else:
             # self.UserList = {}  #第一个默认为主账号，其余为副账号
-            self.keywordList = ['科技'] # 每次更新keyswords时，需要同步更新residDays
-            self.subkeywordList = {self.keywordList[0]:set(['创新'])} # 副标签的作用是，每个关键词可以依次循环搜索副关键词，并查询其新闻内容；每个新闻中，应该在标题或者摘要中包含至少一个主关键词或者副关键词，否则认为是垃圾信息
-            self.serachRangeOpts = {self.keywordList[0]:{'百度新闻':True, '百度网页':False,'搜狗新闻':False,'搜狗微信':False,'今日头条':False }}
-            self.companyInFiled = ['科技']
+            self.keywordList = ['互联网'] # 每次更新keyswords时，需要同步更新residDays
+            self.subkeywordList = {self.keywordList[0]:set(['融资'])} # 副标签的作用是，每个关键词可以依次循环搜索副关键词，并查询其新闻内容；每个新闻中，应该在标题或者摘要中包含至少一个主关键词或者副关键词，否则认为是垃圾信息
+            self.serachRangeOpts = {self.keywordList[0]:{'百度新闻':True, '百度网页':False,'搜狗新闻':False,'搜狗微信':False,'今日头条':True }}
+            self.companyInFiled = ['互联网']
             self.numOfNewsInEachScan = 60
             self.numOfNewsInFieldComp = 60
             self.defaultSortMethod = 'date'
@@ -134,7 +134,7 @@ class TBaiDuNewsScapper:
             # 检查关键词，并设置有效期
             if len(self.keywordList) < 1:
                 with self.mu:    ##加锁
-                    self.keywordList.append('科技')
+                    self.keywordList.append('互联网')
                     for keyword in self.keywordList:
                          self.residDays[keyword] = 365
             try: 
@@ -320,20 +320,26 @@ class TBaiDuNewsScapper:
                 FindNews =  False # 是否是最近3天新闻
                 for i in range(recDay): # i = 0 ~ recDay - 1
                     day = now - datetime.timedelta(days = i)
+                    # 抓取的时间可能是2018年08月29日
                     date = '%04d年%02d月%02d日'%(day.year, day.month, day.day)
-                    if date in body['date']:
+                    # 抓取的时间可能是2018-08-29
+                    date1 = '%04d-%02d-%02d' % (day.year, day.month, day.day)
+                    dateInBody = body['date']
+                    if date in dateInBody or date1 in dateInBody:
                        FindNews = True
                 if not FindNews:
                     continue
+
                 # 逐条扫描
                 if not self.newsInList(keyword, newsitem):
-                # 如果该条新闻不在列表中，在result中追加该新闻列表   
+                # 如果该条新闻不在列表中，在result中追加该新闻列表
                     result = result + self.printNews2Format(newsitem) + '\n'
                     update = True
                     # 添加新闻
                     self.addNews2List(keyword, newsitem)
                 else:
-                    print('news 过滤不符合')
+                    pass
+                    #print('news 过滤不符合')
         except Exception as e: #一般错误，如果出错，返回错误
             update = False
             errmsg = '刷新新闻异常：scrapUpdatedNews():' + str(e)
@@ -666,6 +672,7 @@ class TBaiDuNewsScapper:
 ## 搜索 搜狗新闻
     
     def searchSouGouNews(self, keywords, newsNum):
+
         print('搜狗新闻平台搜索关键词：' + keywords)
         if datetime.datetime.now().timestamp() < self.souGou_Thresh:
            print(str(datetime.datetime.now().timestamp()) + '--' + str(self.souGou_Thresh))
@@ -707,8 +714,8 @@ class TBaiDuNewsScapper:
                     if request_Try > maxTry:
                         break
             
-#            response = myResponse(url=url, headers = headers,encode = 'GBK')
-#            soup = BeautifulSoup(response.text,'lxml')
+            response = myResponse(url=url, headers = headers,encode = 'GBK')
+            soup = BeautifulSoup(response.text,'lxml')
             div_items = soup.find_all('div', class_ = 'vrwrap') 
             if len(div_items) == 0:
                 if not request_Succ:#'找到相关新闻约0篇' not in response.text and '请检查您输入的关键词是否有错误' not in response.text and '404 Not Found' in response.text:
@@ -841,7 +848,7 @@ class TBaiDuNewsScapper:
             headers = {'User-Agent': utils.get_random_user_agent()}
             
             request_Try = 0
-            maxTry = 20
+            maxTry = 10
             request_Succ = False
             while True:
                 try:
@@ -863,9 +870,9 @@ class TBaiDuNewsScapper:
                     if request_Try > maxTry:
                         break            
             
-#            response = myResponse(url=url,headers=headers, encode = 'utf-8')
-        #    print(response.text)
-#            soup = BeautifulSoup(response.text,'lxml')
+            response = myResponse(url=url,headers=headers, encode = 'utf-8')
+            print(response.text)
+            soup = BeautifulSoup(response.text,'lxml')
             div_items = soup.find_all('div', class_ = 'txt-box') 
             if len(div_items) == 0:
                 if not request_Succ:

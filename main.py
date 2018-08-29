@@ -7,6 +7,7 @@ import threading
 import time, os
 from threading import Timer
 import datetime
+from utils import logfile, label, pricklefileName
 
 timer_t = None
 mu =  threading.RLock()
@@ -18,12 +19,9 @@ UserList = {'xiaoyuan':{'UserName':'', 'NickName':'xiaoyuan', 'Stock':None, 'New
             }   #初始用户列表
 
 global f, logfile, initMsg, label
-logfile = log_dir + '监控主程序.log'
-label = ' # 监控主程序 # '
-f = open(logfile,'a+')
 
 initMsg = '监控软件 by ' + str(__Author__) + ' 启动！\n'
-pricklefileName = pickle_dir + '监控数据_热启动文件.pickle'
+
 Debug = MasFun.Debug
 # 如新闻列表获取失败，信息没有查到，只需要返回错误给用户，并通知管理员
 def SendOnlineMsg(entertime):
