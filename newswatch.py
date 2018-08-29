@@ -333,6 +333,8 @@ class TBaiDuNewsScapper:
                     update = True
                     # 添加新闻
                     self.addNews2List(keyword, newsitem)
+                else:
+                    print('news 过滤不符合')
         except Exception as e: #一般错误，如果出错，返回错误
             update = False
             errmsg = '刷新新闻异常：scrapUpdatedNews():' + str(e)
