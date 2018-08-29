@@ -464,6 +464,9 @@ class TBaiDuNewsScapper:
             new_output  = {}
         if tempFlag:
             self.serachRangeOpts.pop(keywords) # 如果是临时搜索，则从列表中移除该变量
+
+        if succ == False:
+            pass
         return succ, new_output ## 字典形式的           
             
     def searchBaiDuNews(self, keywords, newsNum):
@@ -573,7 +576,9 @@ class TBaiDuNewsScapper:
 #                    print("这条新闻不属于" + keywords +':\n标题：' + a_title + '\n简介：' + a_summary2 + '\n')
                     continue  
                 Output.setdefault('news_' + str(author) + ('%04d_%02d_%02d_%02d_%02d_%02d'%(temptime.year, temptime.month, temptime.day, temptime.hour, temptime.minute,temptime.second) + str(Countor)), \
-    {'title':a_title, 'source':a_author, 'author': author, 'date': author_date, 'timeflag':time_flag, 'link':a_href, 'summary':a_summary2,'platform': '百度新闻'}) 
+    {'title':a_title, 'source':a_author, 'author': author, 'date': author_date, 'timeflag':time_flag, 'link':a_href, 'summary':a_summary2,'platform': '百度新闻'})
+                if succ == False:
+                    pass
         return succ, Output ## 字典形式的
     def searchBaiDuWeb(self, keywords, newsNum):
         Output = {} 
