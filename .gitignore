@@ -29,7 +29,10 @@ var/
 build/
 dist/
 .tox
+
+# xiaoyuan add
 .idea
 log/
 news_log/
 pickle/
+emailpassword.txt
