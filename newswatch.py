@@ -7,7 +7,6 @@ import math
 import re
 import threading  # 用于多线程工作
 import pickle
-import random
 import requests
 import json
 from dateutil import parser as dateParser

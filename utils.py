@@ -3,6 +3,7 @@
 import threading  # 用于多线程工作
 import pickle
 import random
+import os
 
 pickle_dir = 'pickle/'
 log_dir = 'log/'
@@ -10,8 +11,18 @@ news_dir = 'news_log/'
 sleeptime_L = 5*60
 sleeptime_S = 5*60
 mu =  threading.RLock()
-logfile = log_dir + '监控主程序.log'
-label = ' # 监控主程序 # '
+logfile = log_dir + 'watch.log'
+label = ' # news watch # '
+
+if not os.path.exists(pickle_dir):
+    os.mkdir(pickle_dir)
+if not os.path.exists(log_dir):
+    os.mkdir(log_dir)
+if not os.path.exists(news_dir):
+    os.mkdir(news_dir)
+if not os.path.exists(logfile):
+    # 调用系统命令行来创建文件
+    os.system(r"touch {}".format(logfile))
 f = open(logfile,'a+')
 Master = {'Master':{'UserName':'', 'NickName':'xiaoyuan'}}
 Debug = False
