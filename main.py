@@ -7,7 +7,7 @@ import threading
 import time, os
 from threading import Timer
 import datetime
-from utils import logfile, label, pricklefileName
+from utils import logfile, label, pricklefileName, f
 
 timer_t = None
 mu =  threading.RLock()
@@ -18,7 +18,7 @@ Master = {'Master':{'UserName':'', 'NickName':'xiaoyuan'}}
 UserList = {'xiaoyuan':{'UserName':'', 'NickName':'xiaoyuan', 'Stock':None, 'News':None},\
             }   #初始用户列表
 
-global f, logfile, initMsg, label
+global initMsg
 
 initMsg = '监控软件 by ' + str(__Author__) + ' 启动！\n'
 

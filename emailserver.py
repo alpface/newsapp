@@ -2,12 +2,17 @@
 from smtplib import SMTP_SSL
 from email.header import Header
 from email.mime.text import MIMEText
+import os
 
 
 EMAIL_HOST = 'smtp.exmail.qq.com'
 EMAIL_PORT = 465
 EMAIL_HOST_USER = 'xy@swift.top' #os.environ.get('DJANGO_EMAIL_USER')
-with open('emailpassword.txt', 'r+') as pf:
+passwordfile = "emailpassword.txt"
+if not os.path.exists(passwordfile):
+    # 调用系统命令行来创建文件
+    os.system(r"touch {}".format(passwordfile))
+with open(passwordfile, 'r+') as pf:
     EMAIL_HOST_PASSWORD = pf.readline()
 
 EMAIL_TO = ["wangshuai@swift.top", "coderhong@126.com"]
