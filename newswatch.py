@@ -330,16 +330,21 @@ class TBaiDuNewsScapper:
                 if not FindNews:
                     continue
 
+                # 暂时先不要逐条扫描
+                result = result + self.printNews2Format(newsitem) + '\n'
+                update = True
+                # 添加新闻
+                self.addNews2List(keyword, newsitem)
                 # 逐条扫描
-                if not self.newsInList(keyword, newsitem):
-                # 如果该条新闻不在列表中，在result中追加该新闻列表
-                    result = result + self.printNews2Format(newsitem) + '\n'
-                    update = True
-                    # 添加新闻
-                    self.addNews2List(keyword, newsitem)
-                else:
-                    pass
-                    #print('news 过滤不符合')
+                # if not self.newsInList(keyword, newsitem):
+                # # 如果该条新闻不在列表中，在result中追加该新闻列表
+                #     result = result + self.printNews2Format(newsitem) + '\n'
+                #     update = True
+                #     # 添加新闻
+                #     self.addNews2List(keyword, newsitem)
+                # else:
+                #     pass
+                #     #print('news 过滤不符合')
         except Exception as e: #一般错误，如果出错，返回错误
             update = False
             errmsg = '刷新新闻异常：scrapUpdatedNews():' + str(e)
