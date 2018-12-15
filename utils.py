@@ -4,7 +4,6 @@ import threading  # 用于多线程工作
 import pickle
 import random
 import os
-import codecs
 import json
 
 pickle_dir = 'pickle/'
@@ -16,8 +15,8 @@ mu =  threading.RLock()
 logfile = log_dir + 'watch.log'
 label = ' # news watch # '
 
-if not os.path.exists("sendSuccessTitles.json"):
-    os.system(r"touch {}".format("sendSuccessTitles.json"))
+if not os.path.exists("sendSuccessNews.json"):
+    os.system(r"touch {}".format("sendSuccessNews.json"))
 if not os.path.exists(pickle_dir):
     os.mkdir(pickle_dir)
 if not os.path.exists(log_dir):
@@ -35,21 +34,22 @@ if not os.path.exists(pricklefileName):
 
 Master = {'Master':{'UserName':'', 'NickName':'xiaoyuan'}}
 Debug = False
-sendSuccessTitles = [] # 记录发送成功的标题 防止重复发送了
+sendSuccessList = [] # 记录发送成功的新闻，每一条新闻是一个字典 防止重复发送了
 
 
-def saveSendSuccesNews():
-    jsObj = json.dumps(sendSuccessTitles, ensure_ascii=False)
-    with codecs.open('sendSuccessTitles.json', 'w') as outf:
-        outf.write(jsObj)
+def syncNews2File():
+    jsObj = json.dumps(sendSuccessList, ensure_ascii=False)
+    with open('sendSuccessNews.json', 'w') as f:
+        f.write(jsObj)
+
 
 def getSendSuccessNews():
-    with codecs.open("sendSuccessTitles.json", "r") as f:
-        jsonStr = f.read()
-        if len(jsonStr):
-            sendSuccessTitles = json.loads(jsonStr)
-        else:
-            sendSuccessTitles = []
+    with open("sendSuccessNews.json", "r") as f:
+        lJson = f.read()
+        if len(lJson):
+            global sendSuccessList
+            sendSuccessList = json.loads(lJson)
+            print(len(sendSuccessList))
 
 #--------------------------------操作用户列表-------------------------------------------#
 def SendAlert2Master( errmsg):
@@ -135,7 +135,6 @@ def getDatafromPickle(filename):
         write2Log(data)
     return Flag, data
 
-import os
 
 # 默认的User-Agent
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/604.5.6 (KHTML, like Gecko) Version/11.0.3 Safari/604.5.6"

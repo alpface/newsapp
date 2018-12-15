@@ -151,8 +151,7 @@ class TBaiDuNewsScapper:
         with self.mu:
             # 扫描一次所有关键词，将更新结果返回
             print('开始一次 ' + str(self.label))
-            msgcontent = '' 
-            self.countResDays()
+            msgcontent = ''
             # 反爬虫预警
             if datetime.datetime.now().timestamp() < self.souGou_Thresh:
                 errMsg = '搜狗新闻平台遭遇反爬虫系统（' + self.mainUser + '），休息中！剩余时间：' +  str(math.floor((self.souGou_Thresh - datetime.datetime.now().timestamp())/60)) + ' 分钟！'  
@@ -321,7 +320,15 @@ class TBaiDuNewsScapper:
 
                 # 剔除已经发送的标题
                 title = body["title"]
-                if len(title) == 0 or title in utils.sendSuccessTitles:
+                if len(title) == 0:
+                    continue
+                isSend = False
+                for localNewsDict in utils.sendSuccessList:
+                    localTitle = localNewsDict["title"]
+                    if localTitle in title or title in localTitle or title is localNewsDict:
+                        isSend = True
+                        break
+                if isSend == True:
                     continue
 
                 recDay = 1
@@ -339,7 +346,7 @@ class TBaiDuNewsScapper:
                         FindNews = True
                 if not FindNews:
                     continue
-                utils.sendSuccessTitles.append(title)
+                utils.sendSuccessList.append(body)
                 # 暂时先不要逐条扫描
                 result = result + self.printNews2Format(newsitem) + '\n'
                 update = True
@@ -361,9 +368,19 @@ class TBaiDuNewsScapper:
             print(errmsg)
             self.SendAlert2Master(str(self.label) + str(errmsg))
             pass
-        utils.saveSendSuccesNews()
+        utils.syncNews2File()
         return update, result
     def printNews2Format(self, news):
+        '''
+         title = news["title"]
+        author = news["author"]
+        date = news["date"]
+        link = news["link"]
+        platform = news["platform"]
+        source = news["source"]
+        summary = news["summary"]
+        timeflag = news["timeflag"]
+        '''
         # new 格式是排序后的，见addNews2List
         Output = ''
         body = news[1]
@@ -535,6 +552,8 @@ class TBaiDuNewsScapper:
                 source = str(a_author)
                 source = source.split(' ')
                 source = filter(lambda x: x != '',source) # 去除空元素
+                source = filter(lambda  x: x != '\n', source) # 去除\n
+                source = filter(lambda x: x != '\n\n', source)  # 去除\n\n
                 source = [i for i in source]
                 time_flag = False  # True： 准确时间， False，大约时间，需要在后续时间进行更新
                 if len(source) == 2:
@@ -1102,403 +1121,3 @@ class TBaiDuNewsScapper:
                          self.write2Log(msg)
                          print(msg)
         return   temp_sortedNewsDic
-
-
-#--------------------------------操作关键词-------------------------------------------#  
-    def addKeyword2List(self, paras, user):
-        #    \'新闻 akw ShiRui 一带一路[OneBelt+OneRoad](10111) 365\'： \t 在ShiRui主账号下，添加关键词【一带一路】，副关键词为OneBelt和OneRoad，其有效期设置为365天(关键词部分不能有空格, 10111分别表示百度新闻，百度网页，搜狗新闻，搜狗微信，今日头条是否开启\n
-        # akw ShiRui 山东如意[如意集团+SMCP]（10111） 365，即将山东如意(副关键词：如意集团，SMCP)加入到ShiRui主账号名下, 有效期365天，, 10111分别表示百度新闻，百度网页，搜狗新闻，搜狗微信，今日头条是否开启
-
-        if len(paras)!=4:
-            Output = '# 错误: ' + str(self.label) + ' addKeyword2List(), 参数错误！\n' + str(paras) + '\n'
-            Output = Output + '关键词添加：\n \' akw ShiRui 一带一路[OneBelt+OneRoad](10111) 365\'\n  akw 表示添加关键词，ShiRui为主用户名，一带一路为添加的关键词，后面为副关键词，不能有空格，365为有效期, 10111分别表示百度新闻，百度网页，搜狗新闻，搜狗微信，今日头条是否开启'
-            print(paras)
-        else:
-            mainUser = paras[1]
-            temkeyword = paras[2].replace('【','[').replace('】',']').replace('（','(').replace('）',')')
-            if '[' in temkeyword and ']' in temkeyword: # 包含副关键词
-                keyword = temkeyword.split('[')[0]
-                subKeywords = temkeyword.split('[')[1].split(']')[0].split('+')
-            else:# 不包含副关键词
-                keyword = temkeyword
-            if '(' in temkeyword and ')' in temkeyword: # 包含搜索选项信息
-                searchOpts = list(temkeyword.split('(')[1].split(')')[0])
-            else: # 不包含搜索选项
-                searchOpts = ['1','0','1','0','1']
-            if len(searchOpts) != 5:
-                print('参数格式错误，默认设置为：\n 百度新闻：开启\n 百度网页：关闭\n 搜狗新闻：开启\n 搜狗微信：开启\n 今日头条：开启\n')
-                searchOpts = ['1','0','1','0','1']
-            # 设置搜索选项
-            tranSearchOpts = {}
-            tranSearchOpts['百度新闻'] = True if searchOpts[0] == '1' else False
-            tranSearchOpts['百度网页'] = True if searchOpts[1] == '1' else False
-            tranSearchOpts['搜狗新闻'] = True if searchOpts[2] == '1' else False
-            tranSearchOpts['搜狗微信'] = True if searchOpts[3] == '1' else False
-            tranSearchOpts['今日头条'] = True if searchOpts[4] == '1' else False
-            resdays = int(paras[3])
-            if mainUser != self.getMainUser():
-                Output = '# 忽略添加关键词：主账号名不符合！'
-                return Output
-            try:
-                if keyword not in self.keywordList : # 判断关键词是否存在
-                      #如果不存在，添加
-                      with self.mu:
-                          self.keywordList.append(keyword)
-                          # 添加副关键词
-                          self.subkeywordList.setdefault(keyword, set(subKeywords))
-                          self.serachRangeOpts.setdefault(keyword, tranSearchOpts)
-                          self.residDays.setdefault(keyword, resdays)
-                          # 操作NewsList
-                          self.createNewsListofOneKeyword(keyword)
-                      Output = '关键词 【 ' + str(keyword) + ' 】 成功添加至用户 ' + str(mainUser) + ' 监控列表中！ by ' + user + '。 剩余有效期为： ' + str(resdays) + ' 天！'
-                      # WeChat.SendWeChatMsgToUserList(self.UserList, Output, self.logfile) # 向所有用户通知keywords变化信息
-                else:
-                    # 判断副关键词是否存在或一致
-                    if keyword not in self.subkeywordList:
-                        self.subkeywordList.setdefault(keyword, set(subKeywords))
-                    else:
-                        self.subkeywordList[keyword] = set(subKeywords) # 与已有结果求并集
-                    if keyword not in self.serachRangeOpts:
-                        self.serachRangeOpts.setdefault(keyword, tranSearchOpts)
-                    else:
-                        self.serachRangeOpts[keyword]= tranSearchOpts
-
-#                        {self.keywordList[0]:{'百度新闻':True, '百度网页':False,'搜狗新闻':False,'搜狗微信':False,'今日头条':False }}
-                    Output = '关键词 【 ' + str(keyword) + ' 】 信息成功添加至用户 ' + str(mainUser) + ' 监控列表中！ by ' + user + '。 剩余有效期为： ' + str(self.residDays) + ' 天！'
-            except Exception as e:
-                Output = '# 关键词 【 ' + str(keyword) + ' 】 添加失败: ' + str(e)
-                self.write2Log(Output)
-                self.SendAlert2Master(Output)
-                print(Output)
-        return Output
-    def rmKeywordfromList(self, paras, user): # 只有主用户权限
-#    \'新闻 rkw ShiRui 一带一路\'： \t 在ShiRui主账号下，移出关键词【一带一路】(关键词数量不能少于1）\n
-        # rkw ShiRui 山东如意，即ShiRui名下 山东如意关键词删除
-        if len(paras)!=3:
-            Output = '# 错误: ' + str(self.label) + ' rmKeywordfromList(), 参数错误！\n' + str(paras) + '\n' 
-            Output = Output + '关键词删除：\n \' rkw ShiRui 一带一路\'\n  rkw 表示删除关键词，ShiRui为主用户名，一带一路为关键词'
-            print(paras)
-        else:
-            mainUser = paras[1]
-            keyword = paras[2]
-            if mainUser != self.getMainUser():
-                Output = '# 忽略删除关键词：主账号名不符合！'
-                return Output
-            if len(self.keywordList) < 2:
-                Output = '# 忽略删除关键词：主账号关键词少于2！'
-                return Output
-            try: # 首先，检查用户是否在列表中
-                if keyword in self.keywordList: # 如果存在，删除
-                    with self.mu:    ##加锁
-                         self.keywordList.remove(keyword)
-                         # 如果存在副关键词，移出
-                         if keyword in self.subkeywordList: 
-                             self.subkeywordList.pop(keyword)
-                         if keyword in self.serachRangeOpts: 
-                             self.serachRangeOpts.pop(keyword)                             
-                         self.residDays.pop(keyword)
-                         # 操作NewsList
-                         self.NewsList.pop(keyword)
-                    Output = '成功将关键词 【 ' + str(keyword) + ' 】 移出用户'+  mainUser + '监控列表！ by ' + user
-                    # WeChat.SendWeChatMsgToUserList(self.UserList, Output, self.logfile) # 向所有用户通知keywords变化信息
-                else:
-                    Output = '关键词 【 ' +  str(keyword) + ' 】 不存在于监控列表!'
-            except Exception as e:   # 如果不成功，什么也不做，并返回消息
-                Output = '# 关键词 【 ' + str(keyword) + ' 】 删除失败: ' + str(e) 
-                self.write2Log(Output)
-                print(Output)
-                self.SendAlert2Master(Output)
-        return Output  
-    
-#-----------------------------获得某个关键词最近新闻列表------------------------------------------------#
-    def getNewsofKeyword(self, paras): # 默认不带有副关键词
- #  \'新闻 gn ShiRui 一带一路 100 date\'： \t 发送ShiRui主账号下，【一带一路】 关键词最近100条新闻，并按日期（date)或者作者（author）排序排序\n
-        Flag = False
-        Output = ''
-        if len(paras)!=5:
-            Output = '#错误: ' + str(self.label) + ' getNewsofKeyword(), 参数错误！\n 您输入的参数为：' + \
-            str(paras) + '\n 应该输入格式为：新闻 gn ShiRui 一带一路 100 date , gn后面参数依次为，主账号，关键词，新闻条数，以及排序方式（date 或者 author)' 
-            print(paras)
-        else:
-            mainUser = paras[1]
-            keyword = paras[2]
-            numOfNews = paras[3]
-            if int(numOfNews) > self.maximumNews2Get:
-                numOfNews = self.maximumNews2Get
-            fileName = self.getFileName('keyword')
-            sortMethod = paras[4]
-            print("mainUser is " + mainUser)
-            if mainUser != self.getMainUser() and mainUser != 'xiaoyuan' and mainUser != 'xiaoyuan': # 这两个用户或者主账户均有权限
-                Output = '# 忽略删除关键词：主账号名不符合！'
-                return Flag, Output
-            if keyword in self.keywordList or mainUser == 'XuKailong':  # 不在列表的关键词不能查询
-                try: # 获取新闻列表
-                    succ, news = self.getNews(keyword, int(numOfNews), sortMethod)
-                    if not succ:
-                        Flag = False
-                        Output = ''
-                    else:
-                        self.writeNews2File(news, fileName, '## 关键词 ##：【 ' + keyword + ' 】 最近 ' + str(numOfNews) + ' 条新闻搜索结果如下（时间排序）：\n\n', 'w+')
-                        Output = fileName
-                        Flag = True
-                except Exception as e:   # 如果不成功，什么也不做，并返回消息
-                    Output = '# 关键词 【 ' + str(keyword) + ' 】 新闻列表获取异常： ' + str(e) 
-                    self.write2Log(Output)
-                    print(Output)
-            else:
-                Output = '关键词 【 ' +  str(keyword) + ' 】 不存在于监控列表!'
-        return Flag, Output
-    def getFieldNews(self, paras):
-#         \'新闻 gf ShiRui\'： \t 发送ShiRui主账号下，今日同行动态文件（仅特定人员开放）\n
-        Flag = False
-        fileName = ''
-        Output = ''
-        if len(paras)!=2:
-            Output = '# 错误: ' + str(self.label) + ' getFieldNews(), 参数错误！\n 您输入的参数为：' + \
-            str(paras) + '\n 应该输入格式为：新闻 gf ShiRui, gf后面参数为主账号' 
-            print(paras)
-        else:
-            mainUser = paras[1]
-            fileName = self.getFileName('fields_' + mainUser)
-# 仅对ShiRui或者XuKailong开放
-            if self.getMainUser() != 'xiaoyuan' and self.getMainUser() != 'xiaoyuan': # 只有这两个个用户可以获取
-                print('主用户为：' + self.getMainUser())
-                Output = '# 获取同行新闻失败！'
-                return Flag, Output
-            with self.mu:
-                fistTime = True
-                mode = 'w+'
-                Output = ''
-                for keyword in self.companyInFiled:  # 不在列表的关键词不能查询, 每个关键词的结果都写入fileName
-                    print('获取同行：' + keyword)
-                    if fistTime:
-                        mode = 'w+'
-                        fistTime = False
-                    else:
-                        mode = 'a+'
-                    try: # 获取新闻列表
-                        succ, temp_Output = self.getCompanyNewsToday(keyword, fileName, mode) # 只要某个公司的获得成功 ，就返回消息
-                        if succ:
-                            Output = fileName
-                            Flag = True
-                        else:
-                            Output = Output + temp_Output
-                    except Exception as e:   # 如果不成功，什么也不做，并返回消息
-                        Output = '# 获取同行 【 ' + str(keyword) + ' 】 当日新闻列表异常： ' + str(e) 
-                        self.write2Log(Output)
-                        print(Output)
-                        self.SendAlert2Master(Output)
-        if Flag:
-            Output = fileName
-        return Flag, Output    
-    def printFiledCompany(self):
-    #    \'新闻 lfc\'： \t 列出ShiRui主账号下，同行公司列表
-        Output = ''
-        if len(self.companyInFiled) < 1:
-            Output = Output + self.mainUser + ': 同行公司列表为空！'
-        else:
-            with self.mu:
-                Output = Output + self.mainUser + ' 监控的同行公司有：\n' 
-                for company in self.companyInFiled:
-                    # 分别打印昵称，用户名和NickName
-                    Output = Output + '【 ' + str(company) + ' 】\n'
-        return Output
-    
-    def addComp2FieldList(self, paras, user): # 在外部只有管理员能进入
-        # \'新闻 afc ShiRui 红豆股份\'： \t 在ShiRui主账号下，添加同行公司名【红豆股份】
-        if len(paras)!=3:
-            Output = '# 错误: ' + str(self.label) + ' addComp2FieldList(), 参数错误！\n' + str(paras) + '\n' 
-            Output = Output + '同行公司添加：\n \' afc ShiRui 红豆股份\'\n  akw 表示添加同行公司名，ShiRui为主用户名，红豆股份为添加的公司名'
-            print(paras)
-        else:
-            mainUser = paras[1]
-            company = paras[2]
-            if mainUser != self.getMainUser():
-                print('主用户为：' + self.getMainUser())
-                Output = '# 添加同行公司失败！'
-                return Output
-            try: 
-                if company not in self.companyInFiled : # 判断关键词是否存在
-                      #如果不存在，添加
-                      with self.mu:
-                          self.companyInFiled.append(company)
-                      Output = '同行公司 【 ' + str(company) + ' 】 成功添加至用户' + str(mainUser) + '监控列表中！ by ' + user + '。'
-                else:
-                      Output = '# 添加失败： 同行公司 【 ' + str(company) + ' 】 已经存在于监控列表中'
-            except Exception as e:   
-                Output = '# 同行公司 【 ' + str(company) + ' 】 添加失败: ' + str(e) 
-                self.write2Log(Output)
-                self.SendAlert2Master(Output)
-                print(Output)
-        return Output  
-    def rmCompfromFieldList(self, paras, user): # 在外部只有管理员能进入
-#    \'新闻 rfc ShiRui 红豆股份\'： \t 在ShiRui主账号下，移出同行公司名【红豆股份】
-        if len(paras)!=3:
-            Output = '# 错误: ' + str(self.label) + ' rmCompfromFieldList(), 参数错误！\n' + str(paras) + '\n' 
-            Output = Output + '同行公司删除：\n \' 新闻 rfc ShiRui 红豆股份\'\n  rfc  表示删除关键词，ShiRui为主用户名，红豆股份为同行公司名'
-            print(paras)
-        else:
-            mainUser = paras[1]
-            company = paras[2]
-            if mainUser !=self.getMainUser():
-                print('主用户为：' + self.getMainUser())
-                Output = '# 删除同行公司失败！'
-                return Output
-            if len(self.companyInFiled) < 2:
-                Output = '# 忽略删除同行公司：主账号同行公司列表少于2！'
-                return Output
-            try: # 首先，检查用户是否在列表中
-                if company in self.companyInFiled: # 如果存在，删除
-                    with self.mu:    ##加锁
-                         self.companyInFiled.remove(company)
-                    Output = '成功将同行公司 【 ' + str(company) + ' 】 移出用户'+  mainUser + '监控列表！ by ' + user
-                else:
-                    Output = '同行公司 【 ' +  str(company) + ' 】 不存在于监控列表!'
-            except Exception as e:   # 如果不成功，什么也不做，并返回消息
-                Output = '# 同行公司 【 ' + str(company) + ' 】 删除失败: ' + str(e) 
-                self.write2Log(Output)
-                print(Output)
-                self.SendAlert2Master(Output)
-        return Output  
- 
-    def getCompanyNewsToday(self, keyword, filename, mode):
-        Flag = False
-        succ, news = self.getNews( keyword, self.numOfNewsInFieldComp, self.defaultSortMethod)
-        Output = ''
-        if not succ:
-            Flag = False
-            Output = '新闻获取异常！'
-            return Flag, Output
-        else: # 如果成功
-        # news 中已经排序
-            for item in news: # news 本质上是个list，每个元素为键值对
-                body = item[1] # 获得其键值，其下属有'标题',‘date'等
-                now = datetime.datetime.now()
-                today = '%04d年%02d月%02d日'%(now.year, now.month, now.day)
-                if today in body['date']: #如果属于今天，写入该新闻
-                    self.writeNews2File([item], filename, '## 今日同行新闻列表 ##：【 ' + keyword + ' 】 搜索结果如下：\n\n', mode)
-                    print('【 ' + keyword + '】' + '发现新的新闻！')
-                    Flag = True
-            if not Flag:
-                Output = '没有发现 【 ' + str(keyword) + ' 】新闻！\n'
-                
-        return Flag, Output
-    def setResDays(self, paras, user):  # 在外部只有管理员能进入
-    #    \'新闻 srd ShiRui 一带一路 365\'： \t 将ShiRui主账号下，关键词【一带一路】有效期设置为365天\n 
-        if len(paras)!= 4:
-            Output = '# 错误: ' + str(self.label) + ' setResDays(), 参数错误！\n' + str(paras) + '\n'
-            Output = Output + '使用期重设：\n \' srd ShiRui 一带一路 365\'\n  srd 表示重设使用期，ShiRui为主用户名，一带一路为关键词，365 为剩余天数'
-            print(paras)
-        else:
-            mainUser = paras[1]
-            keyword = paras[2]
-            days = int(paras[3])
-            if mainUser != self.getMainUser():
-                Output = '# 忽略使用期重设：主账号名不符合！'
-                return Output
-            try: # 首先，检查用户是否在列表中
-                if keyword in self.keywordList: # 如果存在，删除
-                    with self.mu:    ##加锁
-                         self.residDays[keyword] = int(days)
-                    Output = '成功重设主用户 ' + str(self.getMainUser()) + ' 关键词 【 ' + str(keyword) + ' 】 的使用天数为：' + str(days) + '天 by ' + user
-                    # WeChat.SendWeChatMsgToUserList(self.UserList, Output, self.logfile) # 向所有用户通知keywords变化信息
-                else:
-                    Output = '关键词 【 ' +  str(keyword) + ' 】 不存在于主用户 ' + str(self.getMainUser()) + '监控列表!'
-            except Exception as e:   # 如果不成功，什么也不做，并返回消息
-                Output = '主用户 ' + str(self.getMainUser()) + '# 关键词 【 ' + str(keyword) + ' 】 使用天数设置失败: ' + str(e) 
-                self.write2Log(Output)
-                print(Output)
-                self.SendAlert2Master(Output)
-        return Output   
-    def countResDays(self):
-        try:
-            with self.mu:
-                now = datetime.datetime.now()
-                hour = int(now.hour)
-                if hour != 0: # 非12点期间，置为False
-                    self.ResSetFlag = False
-                    return
-                if hour == 0 and not self.ResSetFlag:
-                    # 判断是否是半夜十二点
-                    print('开始设置用户 ' + str(self.getMainUser()) +' 关键词有效期：\n')
-                    for keyword in self.keywordList: 
-                        self.residDays[keyword] = int(self.residDays[keyword]) - 1
-                        print(' 关键词 【' + keyword + ' 】：' + str(self.residDays[keyword]) + '天！\n')
-                        #判断是否小于15天
-                        if  int(self.residDays[keyword]) < 15:
-                            pass
-                        #     WeChat.SendWeChatMsgToUserList(self.UserList, self.label + '您的监控关键词 【' + keyword + ' 】 还有' + str(self.residDays[keyword] ) + ' 就要过期了，请及时联系管理员延期！\n' + \
-                        # '微信： xiaoyuan；手机：18810181988', self.logfile) # 向所有用户通知keywords变化信息
-                    self.ResSetFlag = True
-                else:
-                    print('已经设置用户 ' + str(self.getMainUser()) + '新闻监控有效期！')
-        except Exception as e:   # 如果不成功，给管理员发消息
-            Output = '# 使用时间设置失败: ' + str(e) 
-            self.write2Log(Output)
-            print(Output)
-            self.SendAlert2Master(Output)
-    
-    def listUserParas(self, paras, user):  # 只有管理员能进入
-# \'新闻 lup ShiRui\'： \t 列出ShiRui主账号下，对应的几个扫描参数关键词，第一个为该主用户 numOfNewsInEachScan, 第二个为该主用户 getFiledNews中的扫描新闻条数，第三个为监控新闻排序方式
-        if len(paras)!=2:
-            Output = '# 错误: ' + str(self.label) + ' listUserParas(), 参数错误！\n' + str(paras) + '\n' 
-            Output = Output + '用户参数打印：\n \' lup ShiRui\'\n  lup 表示列出用户参数，ShiRui为主用户名'
-            print(paras)
-        else:
-            mainUser = paras[1]
-            if mainUser != self.getMainUser(): 
-                print('主用户为：' + self.getMainUser())
-                Output = '# 打印用户 ' + mainUser + ' 参数失败！'
-                return Output
-            try: 
-                Output = '用户 ' + mainUser + '系统参数如下：\n'
-                Output = Output + ' numOfNewsInEachScan : ' + str(self.numOfNewsInEachScan) + ' 条\n'
-                Output = Output + ' numOfNewsInFieldComp : ' + str(self.numOfNewsInFieldComp) + ' 条\n'
-                Output = Output + ' souGou_RestTime : ' + str(self.souGou_RestTime) + ' 分钟\n'
-                Output = Output + ' defaultSortMethod : ' + str(self.defaultSortMethod) + ' \n'
-            except Exception as e:   
-                Output = '# 打印用户 ' + mainUser + ' 参数失败！' + str(e) 
-                self.write2Log(Output)
-                self.SendAlert2Master(Output)
-                print(Output)
-        return Output  
-    def setUserParas(self, paras, user): # 只有管理员能进入
-#   \'新闻 sup ShiRui 60 60 180 date\'： \t 列出ShiRui主账号下，对应的几个扫描参数关键词，第一个为该主用户 numOfNewsInEachScan, 第二个为该主用户 getFiledNews中的扫描新闻条数，,第三个为搜狗新闻平台遇到爬虫时休息时间，分钟，第四个为监控新闻排序方式
-        if len(paras)!=6:
-            Output = '# 错误: ' + str(self.label) + ' setUserParas(), 参数错误！\n' + str(paras) + '\n' 
-            Output = Output + '用户参数设置：\n \' sup ShiRui 60 60 180 date\'\n  sup 表示设置用户参数，ShiRui为主用户名，第一个60表示numOfNewsInEachScan,第二个为该主用户 getFiledNews中的扫描新闻条数，,第三个为搜狗新闻平台遇到爬虫时休息时间，分钟，第四个为监控新闻排序方式'
-            print(paras)
-        else:
-            
-            mainUser = paras[1]
-            nOfNewsInEachScan = paras[2]
-            nOfNewsInFieldComp = paras[3]
-            setSouGouRestTime = paras[4]
-            SortMethod = paras[5]
-            if mainUser != self.getMainUser():
-                print('主用户为：' + self.getMainUser())
-                Output = '# 用户 ' + str(mainUser) + ' 系统参数设置失败！'
-                return Output
-            try: 
-                self.numOfNewsInEachScan = int(nOfNewsInEachScan)
-                self.numOfNewsInFieldComp = int(nOfNewsInFieldComp)
-                if self.souGou_RestTime == int(setSouGouRestTime):
-                    print('\n\n### 重置搜狗搜索平台阈值（%s）！### \n\n' % self.mainUser)
-                    self.souGou_Thresh = 0
-                    self.souGou_WeChat = 0
-                else:
-                    self.souGou_RestTime = int(setSouGouRestTime)
-                if SortMethod == 'date' or SortMethod == 'author' or SortMethod == 'other':
-                    self.defaultSortMethod = SortMethod
-                    Output = '# 用户 ' + str(mainUser) + ' 系统参数设置成功！'
-                else:
-                    self.defaultSortMethod = 'date'
-                    Output = '# 用户 ' + str(mainUser) + ' 新闻参数排序方法设置错误，默认设置为 date !'
-            except Exception as e:   
-                Output = '# 用户 【 ' + str(mainUser) + ' 】 系统参数设置异常: ' + str(e) 
-                self.write2Log(Output)
-                self.SendAlert2Master(Output)
-                print(Output)
-        return Output 
-   
-  
