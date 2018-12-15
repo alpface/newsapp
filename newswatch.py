@@ -28,7 +28,7 @@ class TBaiDuNewsScapper:
     label = ' # 百度新闻实时监控程序 # '
     newsNumpPage = 20
     maximumNews2Get = 300
-    
+
     souGou_Thresh = 0
     souGou_WeChat = 0
     souGou_RestTime = 180 # min
@@ -51,6 +51,7 @@ class TBaiDuNewsScapper:
         #     self.write2Log(errmsg)
         #     print(errmsg)
         #     raise Exception(errmsg)
+        utils.getSendSuccessNews()
         # 添加用户列表，并进行初始化 
         hotReload = False
         if mhotReload:
@@ -102,10 +103,10 @@ class TBaiDuNewsScapper:
             #     raise Exception(errmsg)
         else:
             # self.UserList = {}  #第一个默认为主账号，其余为副账号
-            self.keywordList = ['互联网'] # 每次更新keyswords时，需要同步更新residDays
-            self.subkeywordList = {self.keywordList[0]:set(['融资'])} # 副标签的作用是，每个关键词可以依次循环搜索副关键词，并查询其新闻内容；每个新闻中，应该在标题或者摘要中包含至少一个主关键词或者副关键词，否则认为是垃圾信息
-            self.serachRangeOpts = {self.keywordList[0]:{'百度新闻':True, '百度网页':False,'搜狗新闻':False,'搜狗微信':False,'今日头条':True }}
-            self.companyInFiled = ['互联网']
+            self.keywordList = ['高科技'] # 每次更新keyswords时，需要同步更新residDays
+            self.subkeywordList = {self.keywordList[0]:set(['全球'])} # 副标签的作用是，每个关键词可以依次循环搜索副关键词，并查询其新闻内容；每个新闻中，应该在标题或者摘要中包含至少一个主关键词或者副关键词，否则认为是垃圾信息
+            self.serachRangeOpts = {self.keywordList[0]:{'百度新闻':True, '百度网页':False,'搜狗新闻':False,'搜狗微信':False,'今日头条':False }}
+            self.companyInFiled = ['全球']
             self.numOfNewsInEachScan = 60
             self.numOfNewsInFieldComp = 60
             self.defaultSortMethod = 'date'
@@ -288,8 +289,9 @@ class TBaiDuNewsScapper:
                 if self.sameNews(oldnews[1], news[1]):
                     findNews = True
                     break
-        return findNews    
-            
+        return findNews
+
+
     def scrapUpdatedNews(self, keyword):
         # 扫描一个关键词，得到其前10条新闻列表。逐条判断该新闻是否在该关键词列表中
         # 如果在，返回false
@@ -311,11 +313,17 @@ class TBaiDuNewsScapper:
         # 此处得到的news是该keyword下，key排序后的列表
         try:  # Run已经锁定
             for newsitem in news:
+
                 # 如果不是今日新闻，跳过
                 # news 中已经排序
                 body = newsitem[1] # 获得其键值，其下属有'标题',‘date'等
                 now = datetime.datetime.now()
-                
+
+                # 剔除已经发送的标题
+                title = body["title"]
+                if len(title) == 0 or title in utils.sendSuccessTitles:
+                    continue
+
                 recDay = 1
                 FindNews =  False # 是否是最近3天新闻
                 for i in range(recDay): # i = 0 ~ recDay - 1
@@ -327,9 +335,11 @@ class TBaiDuNewsScapper:
                     dateInBody = body['date']
                     if date in dateInBody or date1 in dateInBody:
                        FindNews = True
+                    elif "小时前" in dateInBody or "2天前" in dateInBody or "1天前": # dateInBody 中的内容是多少小时前
+                        FindNews = True
                 if not FindNews:
                     continue
-
+                utils.sendSuccessTitles.append(title)
                 # 暂时先不要逐条扫描
                 result = result + self.printNews2Format(newsitem) + '\n'
                 update = True
@@ -350,8 +360,8 @@ class TBaiDuNewsScapper:
             errmsg = '刷新新闻异常：scrapUpdatedNews():' + str(e)
             print(errmsg)
             self.SendAlert2Master(str(self.label) + str(errmsg))
-            pass 
-        
+            pass
+        utils.saveSendSuccesNews()
         return update, result
     def printNews2Format(self, news):
         # new 格式是排序后的，见addNews2List

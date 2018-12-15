@@ -4,6 +4,8 @@ import threading  # 用于多线程工作
 import pickle
 import random
 import os
+import codecs
+import json
 
 pickle_dir = 'pickle/'
 log_dir = 'log/'
@@ -14,6 +16,8 @@ mu =  threading.RLock()
 logfile = log_dir + 'watch.log'
 label = ' # news watch # '
 
+if not os.path.exists("sendSuccessTitles.json"):
+    os.system(r"touch {}".format("sendSuccessTitles.json"))
 if not os.path.exists(pickle_dir):
     os.mkdir(pickle_dir)
 if not os.path.exists(log_dir):
@@ -31,6 +35,21 @@ if not os.path.exists(pricklefileName):
 
 Master = {'Master':{'UserName':'', 'NickName':'xiaoyuan'}}
 Debug = False
+sendSuccessTitles = [] # 记录发送成功的标题 防止重复发送了
+
+
+def saveSendSuccesNews():
+    jsObj = json.dumps(sendSuccessTitles, ensure_ascii=False)
+    with codecs.open('sendSuccessTitles.json', 'w') as outf:
+        outf.write(jsObj)
+
+def getSendSuccessNews():
+    with codecs.open("sendSuccessTitles.json", "r") as f:
+        jsonStr = f.read()
+        if len(jsonStr):
+            sendSuccessTitles = json.loads(jsonStr)
+        else:
+            sendSuccessTitles = []
 
 #--------------------------------操作用户列表-------------------------------------------#
 def SendAlert2Master( errmsg):
